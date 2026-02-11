@@ -1,7 +1,9 @@
-import { Contract } from '@algorandfoundation/algorand-typescript'
+import { Account, LogicSig, op, TemplateVar } from '@algorandfoundation/algorand-typescript'
 
-export class Liquidevm extends Contract {
-  public hello(name: string): string {
-    return `Hello, ${name}`
+const owner = TemplateVar<Account>('OWNER')
+
+export class AlgolandFundingLsig extends LogicSig {
+  public program() {
+    return op.arg(0) === owner.bytes
   }
 }

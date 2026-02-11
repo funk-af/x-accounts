@@ -1,9 +1,35 @@
-import { Config } from '@algorandfoundation/algokit-utils'
+import { AlgorandClient, Config } from '@algorandfoundation/algokit-utils'
 import { registerDebugEventHandlers } from '@algorandfoundation/algokit-utils-debug'
 import { algorandFixture } from '@algorandfoundation/algokit-utils/testing'
-import { Address } from 'algosdk'
-import { beforeAll, beforeEach, describe, expect, test } from 'vitest'
-import { LiquidevmFactory } from '../artifacts/liquidevm/LiquidevmClient'
+import { Account } from 'algosdk'
+import { readFileSync } from 'fs'
+import { dirname, join } from 'path'
+import { fileURLToPath } from 'url'
+import { beforeAll, beforeEach, describe, test } from 'vitest'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const approvalProgram = readFileSync(join(__dirname, '../artifacts/liquidevm/AlgolandFundingLsig.teal'), 'utf8')
+let approvalBytes: Uint8Array | undefined = undefined
+
+async function createLogicSigAccount({
+  account,
+  args,
+  algorand,
+}: {
+  account: Account
+  args: Uint8Array[]
+  algorand: AlgorandClient
+}) {
+  const compiledBase64ToBytes =
+    approvalBytes ??
+    (
+      await algorand.app.compileTealTemplate(approvalProgram, {
+        TMPL_OWNER: account.addr.publicKey,
+      })
+    ).compiledBase64ToBytes
+  if (!approvalBytes) approvalBytes = compiledBase64ToBytes
+  return algorand.account.logicsig(compiledBase64ToBytes, args)
+}
 
 describe('Liquidevm contract', () => {
   const localnet = algorandFixture()
@@ -16,38 +42,19 @@ describe('Liquidevm contract', () => {
   })
   beforeEach(localnet.newScope)
 
-  const deploy = async (account: Address) => {
-    const factory = localnet.algorand.client.getTypedAppFactory(LiquidevmFactory, {
-      defaultSender: account,
-    })
-
-    const { appClient } = await factory.deploy({
-      onUpdate: 'append',
-      onSchemaBreak: 'append',
-    })
-    return { client: appClient }
-  }
-
-  test('says hello', async () => {
+  test('should create logic sig', async () => {
     const { testAccount } = localnet.context
-    const { client } = await deploy(testAccount)
-
-    const result = await client.send.hello({ args: { name: 'World' } })
-
-    expect(result.return).toBe('Hello, World')
-  })
-
-  test('simulate says hello with correct budget consumed', async () => {
-    const { testAccount } = localnet.context
-    const { client } = await deploy(testAccount)
-    const result = await client
-      .newGroup()
-      .hello({ args: { name: 'World' } })
-      .hello({ args: { name: 'Jane' } })
-      .simulate()
-
-    expect(result.returns[0]).toBe('Hello, World')
-    expect(result.returns[1]).toBe('Hello, Jane')
-    expect(result.simulateResponse.txnGroups[0].appBudgetConsumed).toBeLessThan(100)
+    const lsigAccount = await createLogicSigAccount({
+      account: testAccount,
+      args: [testAccount.addr.publicKey],
+      algorand: localnet.algorand,
+    })
+    await localnet.algorand.account.ensureFundedFromEnvironment(lsigAccount, (1).algos())
+    await localnet.algorand.send.payment({
+      sender: lsigAccount,
+      receiver: lsigAccount,
+      amount: (0.1).algos(),
+      signer: lsigAccount.signer,
+    })
   })
 })

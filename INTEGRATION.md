@@ -7,7 +7,7 @@ In case you want to experiment with liquid-evm-accounts in your frontend:
 Use npm aliases to install the experimental `@d13co` builds under the `@txnlab` package names. This way your imports stay as `@txnlab/use-wallet-react` — no find-and-replace needed.
 
 ```bash
-pnpm add @txnlab/use-wallet@npm:@d13co/use-wallet @txnlab/use-wallet-react@npm:@d13co/use-wallet-react @txnlab/use-wallet-ui-react liquid-accounts-evm @metamask/sdk
+pnpm add @txnlab/use-wallet@npm:@d13co/use-wallet@latest @txnlab/use-wallet-react@npm:@d13co/use-wallet-react@latest @txnlab/use-wallet-ui-react@npm:@d13co/use-wallet-ui-react@latest liquid-accounts-evm@latest @metamask/sdk
 ```
 
 Note: This uses use-wallet v4. Migration should be straightforward/painless if you are on v2 or v3:
@@ -16,6 +16,10 @@ Note: This uses use-wallet v4. Migration should be straightforward/painless if y
 - https://txnlab.gitbook.io/use-wallet/guides/migrating-from-v3.x
 
 ## 2. Usage
+
+1. Add METAMASK to your WalletManager
+2. Add WalletUIProvider
+3. Replace your "Connect Wallet" button
 
 ```tsx
 import {
@@ -60,9 +64,10 @@ function App() {
 - Theme injection (`'light'` | `'dark'` | `'system'`)
 - Optional `queryClient` prop if you already have a `@tanstack/react-query` provider
 
-## 3. Opt in EVM account to assets
+## 3. Manage Liquid EVM Account
 
-After connecting your EVM account, you can opt it in to assets via:
+After connecting your EVM account, you can manage it via:
 
-{WalletButton} -> ⚡ Manage -> Opt in
+{WalletButton} -> ⚡ Manage
 
+To opt in to ASAs, use the `Receive` view.

@@ -2,11 +2,13 @@
 #
 # Publish @txnlab/* packages under the @d13co scope.
 #
-# Rewrites package names and cross-references in package.json files,
-# runs pnpm publish for each package, then reverts all changes.
+# Phase 1: Fetch npm versions, prompt for patch bumps (applied to source)
+# Phase 2: Rebuild affected projects (while still @txnlab, so workspace resolves)
+# Phase 3: Rewrite scope, resolve workspace refs, prompt for publish per package
+# Phase 4: Restore all package.json files on exit
 #
 # Usage:
-#   ./publish.sh [--dry-run] [--otp <code>] [--tag <tag>]
+#   ./publish-d13co.sh [--dry-run] [--otp <code>] [--tag <tag>]
 #
 # Options:
 #   --dry-run   Show what would be published without actually publishing
@@ -32,7 +34,6 @@ while [[ $# -gt 0 ]]; do
 done
 
 # ── Scope mapping ────────────────────────────────────────────────────
-# Only @txnlab packages need renaming. @d13co packages keep their names.
 FROM_SCOPE="@txnlab"
 TO_SCOPE="@d13co"
 
@@ -43,7 +44,8 @@ PACKAGE_JSONS=(
   "$ROOT/projects/use-wallet/packages/use-wallet-vue/package.json"
   "$ROOT/projects/use-wallet/packages/use-wallet-solid/package.json"
   "$ROOT/projects/use-wallet/packages/use-wallet-svelte/package.json"
-  # use-wallet-ui-react has a peerDep on @txnlab/use-wallet-react
+  # use-wallet-ui packages
+  "$ROOT/projects/use-wallet-ui/packages/liquid-ui/package.json"
   "$ROOT/projects/use-wallet-ui/packages/react/package.json"
 )
 
@@ -58,10 +60,15 @@ PUBLISH_DIRS=(
   "$ROOT/projects/use-wallet-ui/packages/react"
 )
 
+# Project roots that need rebuilding (deduped from PUBLISH_DIRS)
+PROJECT_ROOTS=(
+  "$ROOT/projects/use-wallet"
+  "$ROOT/projects/use-wallet-ui"
+)
+
 # ── Helpers ──────────────────────────────────────────────────────────
 backup_suffix=".publish-backup"
 
-# Bump the patch component of a semver string: 1.2.3 → 1.2.4
 bump_patch() {
   local v="$1"
   local major minor patch
@@ -69,7 +76,6 @@ bump_patch() {
   echo "${major}.${minor}.$((patch + 1))"
 }
 
-# Set the version in a package.json file
 set_version() {
   local file="$1" new_version="$2"
   sed -i "s|\"version\": *\"[^\"]*\"|\"version\": \"${new_version}\"|" "$file"
@@ -89,25 +95,137 @@ restore_files() {
   done
 }
 
+# Only rewrite these specific @txnlab package names to @d13co.
+# Other @txnlab deps (e.g. @txnlab/utils-ts) are left untouched.
+REWRITE_NAMES=(
+  use-wallet
+  use-wallet-react
+  use-wallet-vue
+  use-wallet-solid
+  use-wallet-svelte
+  use-wallet-ui-react
+  use-wallet-ui-monorepo
+  use-wallet-ui-e2e
+  use-wallet-ui-react-example
+  use-wallet-ui-react-css-only-example
+  use-wallet-ui-react-custom-example
+)
+
 rewrite_scope() {
   for f in "${PACKAGE_JSONS[@]}"; do
-    # Replace @txnlab/ with @d13co/ in name fields and dependency references.
-    # Uses sed to do a global find-replace. workspace:* references are preserved.
-    sed -i "s|${FROM_SCOPE}/|${TO_SCOPE}/|g" "$f"
+    for pkg in "${REWRITE_NAMES[@]}"; do
+      sed -i "s|${FROM_SCOPE}/${pkg}|${TO_SCOPE}/${pkg}|g" "$f"
+    done
   done
 }
 
-# Always restore on exit
+resolve_workspace_refs() {
+  for f in "${PACKAGE_JSONS[@]}"; do
+    local matches
+    matches=$(grep -oP '"@d13co/[^"]+": *"workspace:\*"' "$f" 2>/dev/null || true)
+    [[ -z "$matches" ]] && continue
+
+    while read -r match; do
+      dep_name=$(echo "$match" | grep -oP '"@d13co/[^"]+' | tr -d '"')
+      original_name="${dep_name/@d13co\//@txnlab\/}"
+      for pf in "${PACKAGE_JSONS[@]}"; do
+        pf_name=$(grep -m1 '"name"' "$pf" | sed 's/.*"name": *"//;s/".*//')
+        if [[ "$pf_name" == "$dep_name" || "$pf_name" == "$original_name" ]]; then
+          dep_version=$(grep -m1 '"version"' "$pf" | sed 's/.*"version": *"//;s/".*//')
+          echo "    ${dep_name}: workspace:* → ^${dep_version}"
+          sed -i "s|\"${dep_name}\": *\"workspace:\\*\"|\"${dep_name}\": \"^${dep_version}\"|" "$f"
+          break
+        fi
+      done
+    done <<< "$matches"
+  done
+}
+
+# ── Phase 1: Version bumps ───────────────────────────────────────────
+echo "==> Phase 1: Check versions"
+echo ""
+
+# Track which packages were bumped and which projects need rebuilding
+declare -A BUMPED          # dir → new_version (only if bumped)
+NEEDS_REBUILD=()           # project roots that need rebuilding
+
+for dir in "${PUBLISH_DIRS[@]}"; do
+  pkg="$dir/package.json"
+  # Read the @d13co name this will become
+  local_name=$(grep -m1 '"name"' "$pkg" | sed 's/.*"name": *"//;s/".*//')
+  d13co_name="${local_name/@txnlab\//@d13co\/}"
+  version=$(grep -m1 '"version"' "$pkg" | sed 's/.*"version": *"//;s/".*//')
+
+  published=$(npm view "$d13co_name" version 2>/dev/null || echo "none")
+  if [[ "$published" == "none" ]]; then
+    echo "  ${d13co_name}  local: ${version}  npm: (not published)"
+    echo -n "  [b] bump patch  [n] keep ${version}: "
+  else
+    bumped=$(bump_patch "$published")
+    echo "  ${d13co_name}  local: ${version}  npm: ${published}  bump: ${bumped}"
+    echo -n "  [b] bump to ${bumped}  [n] keep ${version}: "
+  fi
+
+  read -r answer
+  case "$answer" in
+    b|B)
+      if [[ "$published" == "none" ]]; then
+        new_ver=$(bump_patch "$version")
+      else
+        new_ver="$bumped"
+      fi
+      set_version "$pkg" "$new_ver"
+      BUMPED["$dir"]="$new_ver"
+      echo "    → ${new_ver}"
+      ;;
+    *)
+      echo "    kept ${version}"
+      ;;
+  esac
+  echo ""
+done
+
+# ── Phase 2: Rebuild ─────────────────────────────────────────────────
+# Figure out which project roots had bumps
+for dir in "${!BUMPED[@]}"; do
+  for root in "${PROJECT_ROOTS[@]}"; do
+    if [[ "$dir" == "$root"/* ]]; then
+      # Add to NEEDS_REBUILD if not already there
+      already=false
+      for r in "${NEEDS_REBUILD[@]+"${NEEDS_REBUILD[@]}"}"; do
+        [[ "$r" == "$root" ]] && already=true
+      done
+      $already || NEEDS_REBUILD+=("$root")
+    fi
+  done
+done
+
+if [[ ${#NEEDS_REBUILD[@]} -gt 0 ]]; then
+  echo "==> Phase 2: Rebuilding"
+  for root in "${NEEDS_REBUILD[@]}"; do
+    echo "    Building $(basename "$root")..."
+    (cd "$root" && pnpm build:packages 2>/dev/null || pnpm build)
+  done
+  echo ""
+else
+  echo "==> Phase 2: No bumps, skipping rebuild"
+  echo ""
+fi
+
+# ── Phase 3: Scope rewrite & publish ─────────────────────────────────
+# Back up AFTER bumps + rebuild so version bumps are retained on restore
+echo "==> Phase 3: Preparing for publish"
+
+echo "    Backing up package.json files"
+backup_files
 trap restore_files EXIT
 
-# ── Main ─────────────────────────────────────────────────────────────
-echo "==> Backing up package.json files"
-backup_files
-
-echo "==> Rewriting ${FROM_SCOPE} → ${TO_SCOPE}"
+echo "    Rewriting ${FROM_SCOPE} → ${TO_SCOPE}"
 rewrite_scope
 
-# Show what changed
+echo "    Resolving workspace:* references"
+resolve_workspace_refs
+
 echo ""
 echo "==> Rewritten package names:"
 for f in "${PACKAGE_JSONS[@]}"; do
@@ -136,32 +254,9 @@ else
     name=$(grep -m1 '"name"' "$dir/package.json" | sed 's/.*"name": *"//;s/".*//')
     version=$(grep -m1 '"version"' "$dir/package.json" | sed 's/.*"version": *"//;s/".*//')
 
-    # Fetch latest published version from npm
-    published=$(npm view "$name" version 2>/dev/null || echo "none")
-    if [[ "$published" == "none" ]]; then
-      echo ""
-      echo "  ${name}  local: ${version}  npm: (not published)"
-    else
-      bumped=$(bump_patch "$published")
-      echo ""
-      echo "  ${name}  local: ${version}  npm: ${published}  bump: ${bumped}"
-    fi
-
-    echo -n "  [y] publish  [b] bump to ${bumped:-$version} & publish  [n] skip  [q] quit: "
+    echo -n "  Publish ${name}@${version}? [y/N/q] "
     read -r answer
     case "$answer" in
-      b|B)
-        if [[ "$published" == "none" ]]; then
-          echo "    Nothing to bump from, publishing as ${version}"
-        else
-          version="$bumped"
-          set_version "$dir/package.json" "$version"
-          echo "    Bumped to ${version}"
-        fi
-        echo "==> Publishing ${name}@${version}"
-        (cd "$dir" && pnpm publish "${PUBLISH_ARGS[@]}")
-        echo ""
-        ;;
       y|Y)
         echo "==> Publishing ${name}@${version}"
         (cd "$dir" && pnpm publish "${PUBLISH_ARGS[@]}")
@@ -179,4 +274,4 @@ else
 fi
 
 echo "==> Restoring original package.json files"
-# trap will handle restore
+# trap handles restore

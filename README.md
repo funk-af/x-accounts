@@ -45,10 +45,8 @@ The LogicSig contract:
 
 The LogicSig uses [EIP-712](https://eips.ethereum.org/EIPS/eip-712) typed structured data rather than raw `personal_sign` for two reasons:
 
-- **Domain separation**: The EIP-712 domain (`name`, `version`, `chainId`) is embedded in the signed digest, preventing signatures from being replayed across different applications or protocols.
+- **Domain separation**: The EIP-712 domain (`name`, `version`) is embedded in the signed digest, preventing signatures from being replayed across different applications or protocols. Network-level replay protection is provided by the Algorand transaction's genesis hash, which is already part of the signed transaction ID/group ID.
 - **Human-readable signing prompts**: EVM wallets (MetaMask, etc.) display the structured fields to the user instead of an opaque hex blob, making it clear what is being authorized.
-
-**Chain ID approach**: A single `chainId` of `4160` is used across all Algorand networks (MainNet, TestNet, LocalNet). Using per-network chain IDs would cause different derived Algorand addresses per network for the same EVM account, which is undesirable. Network-level replay protection is instead provided by the Algorand transaction's genesis hash, which is already part of the signed transaction ID/group ID.
 
 ## Quick Start
 

@@ -41,9 +41,8 @@ The logic signature:
 
 ```typescript
 {
-  name: "Liquid Accounts",
+  name: "Algo x EVM",
   version: "1",
-  chainId: 4160  // Algorand constant for all networks
 }
 ```
 
@@ -260,7 +259,7 @@ Interface for the EIP-712 typed data passed to `signMessage` callbacks:
 
 ```typescript
 interface SignTypedDataParams {
-  domain: { name: string; version: string; chainId: number }
+  domain: { name: string; version: string }
   types: {
     EIP712Domain: Array<{ name: string; type: string }>
     AlgorandTransaction: Array<{ name: string; type: string }>
@@ -309,9 +308,8 @@ The EIP-712 domain used for signing:
 
 ```typescript
 {
-  name: "Liquid Accounts",
+  name: "Algo x EVM",
   version: "1",
-  chainId: 4160  // Algorand constant
 }
 ```
 
@@ -327,7 +325,7 @@ The EIP-712 types used for signing:
 
 #### `ALGORAND_CHAIN_ID`
 
-The Algorand chainId constant: `4160` (used across all Algorand networks)
+The Algorand chain ID constant: `4160` (used for EVM wallet chain registration)
 
 #### `hexToBytes(hex: string): Uint8Array`
 

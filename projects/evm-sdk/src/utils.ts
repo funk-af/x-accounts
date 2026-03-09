@@ -83,19 +83,18 @@ export function parseEvmSignature(sigHex: string): Uint8Array {
 }
 
 /**
- * EIP-712 Domain for Liquid Accounts
- * chainId 4160 is the Algorand constant used across all networks (mainnet/testnet/localnet)
+ * Algorand chain ID used for EVM wallet chain registration (wallet_addEthereumChain)
  */
 export const ALGORAND_CHAIN_ID = 4160
 export const ALGORAND_CHAIN_ID_HEX = "0x" + ALGORAND_CHAIN_ID.toString(16)
 
 /**
- * EVM chain configuration for Algorand (Liquid Accounts).
+ * EVM chain configuration for Algorand.
  * Use with `wallet_addEthereumChain` to register the Algorand chain in EVM wallets.
  */
 export const ALGORAND_EVM_CHAIN_CONFIG = {
   chainId: ALGORAND_CHAIN_ID_HEX,
-  chainName: "Algorand (Liquid Accounts)",
+  chainName: "Algorand",
   nativeCurrency: {
     name: "ALGO",
     symbol: "ALGO",
@@ -106,7 +105,7 @@ export const ALGORAND_EVM_CHAIN_CONFIG = {
 }
 
 /**
- * Wagmi/viem-compatible Chain definition for Algorand (Liquid Accounts).
+ * Wagmi/viem-compatible Chain definition for Algorand.
  * Can be passed directly to wagmi's `getDefaultConfig` or viem's `createPublicClient`.
  */
 export const algorandChain = {
@@ -127,9 +126,8 @@ export const algorandChain = {
 } as const
 
 export const EIP712_DOMAIN = {
-  name: "Liquid Accounts",
+  name: "Algo x EVM",
   version: "1",
-  chainId: ALGORAND_CHAIN_ID,
 } as const
 
 /**
@@ -145,7 +143,6 @@ export const EIP712_TYPES = {
 const EIP712_DOMAIN_TYPE = [
   { name: "name", type: "string" },
   { name: "version", type: "string" },
-  { name: "chainId", type: "uint256" },
 ] as const
 
 /**

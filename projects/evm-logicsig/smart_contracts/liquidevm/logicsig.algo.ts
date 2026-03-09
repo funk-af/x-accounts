@@ -13,9 +13,8 @@
  * 5. Transaction is approved if the derived address matches the template owner
  *
  * EIP-712 Domain:
- * - name: "Liquid Accounts"
+ * - name: "Algo x EVM"
  * - version: "1"
- * - chainId: 4160 (Algorand constant for all networks)
  *
  * EIP-712 Message Type:
  * - AlgorandTransaction(bytes32 Transaction ID)
@@ -46,18 +45,17 @@ export class LiquidEvmLsig extends LogicSig {
     const recoveryId: uint64 = v - 27 // Ethereum uses 27/28, AVM expects 0/1
 
     // EIP-712 Domain Separator (precomputed off-chain)
-    // domainSeparator = keccak256(domainTypeHash + nameHash + versionHash + chainId)
+    // domainSeparator = keccak256(domainTypeHash + nameHash + versionHash)
     // where:
-    //   domainTypeHash = keccak256("EIP712Domain(string name,string version,uint256 chainId)")
-    //   nameHash = keccak256("Liquid Accounts")
+    //   domainTypeHash = keccak256("EIP712Domain(string name,string version)")
+    //   nameHash = keccak256("Algo x EVM")
     //   versionHash = keccak256("1")
-    //   chainId = 4160 (Algorand constant)
-    // Value: 0xcd2715b67ae987618a9e27b3a29c522b1171fd767b2224547d03747eae76adc6
+    // Value: 0xf727690fd7566b6b73ff21f90f90b9fd3012f09af6e043f71d9312236fa51f65
 
     // EIP-712 Message Type Hash (precomputed off-chain)
     // messageTypeHash = keccak256("AlgorandTransaction(bytes32 Transaction ID)")
     // Value: 0xa0d3cab9c111e1025e8e6c24067ada7c8fff46e1696e611a8b2e5049bac4baf6
-    const domainSeparator = Bytes.fromHex('cd2715b67ae987618a9e27b3a29c522b1171fd767b2224547d03747eae76adc6')
+    const domainSeparator = Bytes.fromHex('f727690fd7566b6b73ff21f90f90b9fd3012f09af6e043f71d9312236fa51f65')
     const messageTypeHash = Bytes.fromHex('a0d3cab9c111e1025e8e6c24067ada7c8fff46e1696e611a8b2e5049bac4baf6')
 
     const messageHash = op.keccak256(messageTypeHash.concat(txnIdPayload))

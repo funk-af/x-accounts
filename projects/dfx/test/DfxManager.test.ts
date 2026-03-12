@@ -22,30 +22,27 @@ const mocks = vi.hoisted(() => ({
   simulateThrows: { value: false },
 }));
 
+const fakeAlgod = {
+  status: () => ({
+    do: async () => {
+      if (mocks.statusThrows.value) throw new Error("algod down");
+      return { lastRound: mocks.lastRound.value };
+    },
+  }),
+  simulateTransactions: (_req: unknown) => ({
+    do: async () => {
+      if (mocks.simulateThrows.value) throw new Error("simulate error");
+      return mocks.simulateResult.value;
+    },
+  }),
+  sendRawTransaction: (bytes: Uint8Array) => ({
+    do: () => mocks.sendRawTxn(bytes),
+  }),
+};
+
 vi.mock("@algorandfoundation/algokit-utils", () => ({
   AlgorandClient: {
-    mainNet: () => ({
-      client: {
-        algod: {
-          status: () => ({
-            do: async () => {
-              if (mocks.statusThrows.value) throw new Error("algod down");
-              return { lastRound: mocks.lastRound.value };
-            },
-          }),
-          simulateTransactions: (_req: unknown) => ({
-            do: async () => {
-              if (mocks.simulateThrows.value)
-                throw new Error("simulate error");
-              return mocks.simulateResult.value;
-            },
-          }),
-          sendRawTransaction: (bytes: Uint8Array) => ({
-            do: () => mocks.sendRawTxn(bytes),
-          }),
-        },
-      },
-    }),
+    fromClients: () => ({ client: { algod: fakeAlgod } }),
   },
 }));
 
@@ -232,7 +229,7 @@ beforeEach(() => {
   storage = new FakeStorage();
   manager = new DfxManager(
     { storage } as unknown as DurableObjectState,
-    {}
+    { ALGOD_SERVER: "http://localhost", ALGOD_PORT: "4001", ALGOD_TOKEN: "a".repeat(64) } as any
   );
   mocks.sendRawTxn.mockClear();
   mocks.sendRawTxn.mockResolvedValue({});

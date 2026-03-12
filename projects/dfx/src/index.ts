@@ -1,7 +1,10 @@
 export { DfxManager } from "./DfxManager";
 
-interface Env {
+export interface Env {
   DFX_MANAGER: DurableObjectNamespace;
+  ALGOD_SERVER: string;
+  ALGOD_PORT: string;
+  ALGOD_TOKEN: string;
 }
 
 export default {

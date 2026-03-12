@@ -36,6 +36,10 @@ pnpm test      # run vitest suite
 pnpm deploy    # deploy to Cloudflare
 ```
 
+## Privacy
+
+The service does not read, store, or log any user-identifying request metadata. IP addresses, User-Agent headers, and Referer headers are never accessed. The only data stored is the signed transaction bytes submitted by the caller. Operational logs contain only Algorand-specific information (transaction IDs, sender addresses, round numbers).
+
 ## Testing
 
 Tests live in `test/DfxManager.test.ts` and run with Vitest in plain Node.js (no Cloudflare runtime needed). The test suite mocks `AlgorandClient` and uses a fake in-memory `DurableObjectState`, exercising `DfxManager` as a class directly.

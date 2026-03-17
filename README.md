@@ -55,7 +55,20 @@ The LogicSig uses [EIP-712](https://eips.ethereum.org/EIPS/eip-712) typed struct
 - [Node.js 22+](https://nodejs.org/en/download)
 - [AlgoKit CLI 2.5+](https://github.com/algorandfoundation/algokit-cli#install)
 - [Docker](https://www.docker.com/) (for LocalNet)
-- [pnpm](https://pnpm.io/installation)
+- [pnpm >= 10.29.3](https://pnpm.io/installation)
+
+The recommended way to install pnpm is via [Corepack](https://nodejs.org/api/corepack.html), which ships with Node.js:
+
+```bash
+corepack enable
+corepack prepare pnpm@10.29.3 --activate
+```
+
+Alternative: standalone install
+
+```
+npm install -g pnpm@10.29.3
+```
 
 ### Installation
 
@@ -64,8 +77,13 @@ The LogicSig uses [EIP-712](https://eips.ethereum.org/EIPS/eip-712) typed struct
 git clone https://github.com/tasosbit/liquid-accounts.git
 cd liquid-accounts
 
-# Bootstrap the project (installs dependencies)
-algokit project bootstrap all
+# fetch the submodules
+git submodule init
+git submodule update
+
+# Install dependencies
+# Read the output carefully, you may need to approve build scripts.
+pnpm i
 
 # Start LocalNet
 algokit localnet start

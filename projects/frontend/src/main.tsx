@@ -23,12 +23,11 @@ import { ErrorBoundary } from "./ErrorBoundary.tsx";
 type AlgorandNetwork = "localnet" | "testnet" | "mainnet";
 
 const wagmiConfig = getDefaultConfig({
-    appName: "Algo x EVM Demo",
-    projectId: "3404862cca4501e4d84be405269d955c",
-    chains: [algorandChain],
-    debug: true,
-  })
-
+  appName: "Algo x EVM Demo",
+  projectId: "3404862cca4501e4d84be405269d955c",
+  chains: [algorandChain],
+  debug: true,
+});
 
 function makeWalletManager(network: AlgorandNetwork) {
   return new WalletManager({
@@ -52,7 +51,11 @@ function makeWalletManager(network: AlgorandNetwork) {
 function getInitialNetwork(): AlgorandNetwork {
   const stored = localStorage.getItem("algorand-network");
   if (stored === "localnet" || stored === "testnet" || stored === "mainnet") return stored;
-  return "localnet";
+  return "mainnet";
+}
+
+async function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function Root() {
@@ -67,10 +70,15 @@ function Root() {
   const walletManager = useMemo(() => makeWalletManager(network), []);
 
   const setNetwork = useCallback((n: AlgorandNetwork) => {
-    localStorage.setItem("algorand-network", n);
-    setNetworkState(n);
-    // important! if multiple networks are supported, the wallet manager needs to be informed of network changes so it can update its internal state and reinitialize connections as needed
-    walletManager.setActiveNetwork(n)
+    (async () => {
+      localStorage.setItem("algorand-network", n);
+      setNetworkState(n);
+      // important! if multiple networks are supported, the wallet manager needs to be informed of network changes so it can update its internal state and reinitialize connections as needed
+      walletManager.setActiveNetwork(n);
+      // dirty temp workaround for a network sync bug
+      await sleep(100);
+      window.location.reload();
+    })();
   }, []);
 
   useEffect(() => {

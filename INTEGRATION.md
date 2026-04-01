@@ -26,7 +26,7 @@ Use npm aliases to install the experimental `@d13co` builds under the `@txnlab` 
 pnpm add @txnlab/use-wallet@npm:@d13co/use-wallet@latest \
          @txnlab/use-wallet-react@npm:@d13co/use-wallet-react@latest \
          @txnlab/use-wallet-ui-react@npm:@d13co/use-wallet-ui-react@latest \
-         algo-x-evm-sdk@latest @rainbow-me/rainbowkit
+         algo-x-evm-sdk@latest @d13co/algo-x-evm-ui@latest @rainbow-me/rainbowkit
 ```
 
 ```bash
@@ -34,7 +34,7 @@ pnpm add @txnlab/use-wallet@npm:@d13co/use-wallet@latest \
 npm install @txnlab/use-wallet@npm:@d13co/use-wallet@latest \
             @txnlab/use-wallet-react@npm:@d13co/use-wallet-react@latest \
             @txnlab/use-wallet-ui-react@npm:@d13co/use-wallet-ui-react@latest \
-            algo-x-evm-sdk@latest @rainbow-me/rainbowkit
+            algo-x-evm-sdk@latest @d13co/algo-x-evm-ui@latest @rainbow-me/rainbowkit
 ```
 
 ```bash
@@ -42,7 +42,7 @@ npm install @txnlab/use-wallet@npm:@d13co/use-wallet@latest \
 yarn add @txnlab/use-wallet@npm:@d13co/use-wallet@latest \
          @txnlab/use-wallet-react@npm:@d13co/use-wallet-react@latest \
          @txnlab/use-wallet-ui-react@npm:@d13co/use-wallet-ui-react@latest \
-         algo-x-evm-sdk@latest @rainbow-me/rainbowkit
+         algo-x-evm-sdk@latest @d13co/algo-x-evm-ui@latest @rainbow-me/rainbowkit
 ```
 
 **Recommended (Allbridge cross-chain bridge support):**
